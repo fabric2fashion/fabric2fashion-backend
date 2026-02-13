@@ -3,7 +3,7 @@ const { Pool } = require("pg");
 let pool;
 
 if (process.env.DATABASE_URL) {
-  // 🔥 Production (Render)
+  // Production (Render / Railway / etc.)
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
@@ -11,13 +11,13 @@ if (process.env.DATABASE_URL) {
     }
   });
 } else {
-  // 💻 Local development
+  // Local development
   pool = new Pool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "postgres",
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT || 5432
+    database: process.env.DB_NAME || "fabric2fashion",
+    port: 5432
   });
 }
 
