@@ -1,183 +1,182 @@
 /**
  * ==========================================
- * SERVER ENTRY POINT
  * Fabric2Fashion Backend
- * PAYMENTS ENABLED (RAZORPAY FEATURE-FLAGGED)
+ * Production Server Entry
  * ==========================================
  */
 
-const path = require("path");
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
-
-require("dotenv").config({
-  path: path.join(__dirname, ".env")
-});
+const { Pool } = require("pg");
 
 /**
- * ==========================================
- * ENV CHECK (SAFE)
- * ==========================================
+ * ------------------------------------------
+ * ENV VALIDATION
+ * ------------------------------------------
  */
-console.log("🔎 ENV CHECK:", {
-  PORT: process.env.PORT,
-  PAYMENTS_ENABLED: process.env.PAYMENTS_ENABLED,
-  DB_HOST: process.env.DB_HOST,
-  DB_NAME: process.env.DB_NAME,
-  DB_USER: process.env.DB_USER,
-  dbPasswordPresent: Boolean(process.env.DB_PASSWORD),
-  jwtSecretPresent: Boolean(process.env.JWT_SECRET),
-  razorpayKeysPresent:
-    Boolean(process.env.RAZORPAY_KEY_ID) &&
-    Boolean(process.env.RAZORPAY_KEY_SECRET)
-});
-
-/**
- * ==========================================
- * SAFE ROUTE LOADER
- * ==========================================
- */
-function loadRoute(mod, name) {
-  if (typeof mod === "function") return mod;
-  if (mod && typeof mod.router === "function") return mod.router;
-  if (mod && typeof mod.default === "function") return mod.default;
-
-  console.error(`❌ INVALID ROUTE EXPORT: ${name}`);
-  throw new Error(`Route "${name}" does not export an Express router`);
+if (!process.env.JWT_SECRET) {
+  console.error("❌ JWT_SECRET missing");
+  process.exit(1);
 }
 
 /**
- * ==========================================
- * ROUTE IMPORTS
- * ==========================================
- */
-
-/* Core */
-const authRoutes = loadRoute(require("./routes/auth.routes"), "auth.routes");
-const productRoutes = loadRoute(require("./routes/products.routes"), "products.routes");
-const orderRoutes = loadRoute(require("./routes/orders.routes"), "orders.routes");
-const deliveryRoutes = loadRoute(require("./routes/delivery.routes"), "delivery.routes");
-
-/* Payments (kept, feature-flagged) */
-const paymentRoutes = loadRoute(require("./routes/payments.routes"), "payments.routes");
-
-/* Profile */
-const profileRoutes = loadRoute(require("./routes/profile.routes"), "profile.routes");
-
-/* Admin */
-const adminRoutes = loadRoute(require("./routes/admin.routes"), "admin.routes");
-const adminReportsRoutes = loadRoute(require("./routes/admin.reports.routes"), "admin.reports.routes");
-const adminTailoringReportsRoutes = loadRoute(
-  require("./routes/admin.tailoring.reports.routes"),
-  "admin.tailoring.reports.routes"
-);
-const adminPayoutRoutes = loadRoute(
-  require("./routes/admin.payouts.routes"),
-  "admin.payouts.routes"
-);
-
-/* Tailor */
-const tailorRoutes = loadRoute(require("./routes/tailor.routes"), "tailor.routes");
-const tailorMeasurementRoutes = loadRoute(
-  require("./routes/tailor.measurements.routes"),
-  "tailor.measurements.routes"
-);
-const tailorTailoringRoutes = loadRoute(
-  require("./routes/tailor.tailoring.routes"),
-  "tailor.tailoring.routes"
-);
-
-/* Retailer / Supplier */
-const retailerRoutes = loadRoute(require("./routes/retailer.routes"), "retailer.routes");
-const supplierRoutes = loadRoute(require("./routes/supplier.routes"), "supplier.routes");
-
-/* Customer */
-const customerRoutes = loadRoute(require("./routes/customer.routes"), "customer.routes");
-const customerTailoringRoutes = loadRoute(
-  require("./routes/customer.tailoring.routes"),
-  "customer.tailoring.routes"
-);
-
-/* Invoice */
-const invoiceRoutes = loadRoute(require("./routes/invoice.routes"), "invoice.routes");
-
-/**
- * ==========================================
+ * ------------------------------------------
  * APP INIT
- * ==========================================
+ * ------------------------------------------
  */
 const app = express();
 
 /**
- * ==========================================
- * GLOBAL MIDDLEWARE
- * ==========================================
+ * ------------------------------------------
+ * DATABASE SETUP
+ * ------------------------------------------
  */
-app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+let pool;
+
+if (process.env.DATABASE_URL) {
+  console.log("🌍 Using production database (Render)");
+
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+
+} else {
+  console.log("💻 Using local database");
+
+  pool = new Pool({
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "postgres",
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || "fabric2fashion"
+  });
+}
+
+// Test DB connection
+pool.connect()
+  .then(client => {
+    console.log("✅ Database connected");
+    client.release();
+  })
+  .catch(err => {
+    console.error("❌ Database connection failed:", err.message);
+  });
 
 /**
- * ==========================================
- * ROUTES
- * ==========================================
+ * ------------------------------------------
+ * GLOBAL MIDDLEWARE
+ * ------------------------------------------
  */
+app.use(cors());
+app.use(express.json({ limit: "2mb" }));
 
-/* Core */
+/**
+ * ------------------------------------------
+ * ROUTE IMPORTS
+ * ------------------------------------------
+ */
+const authRoutes = require("./routes/auth.routes");
+const productRoutes = require("./routes/products.routes");
+const orderRoutes = require("./routes/orders.routes");
+const deliveryRoutes = require("./routes/delivery.routes");
+const profileRoutes = require("./routes/profile.routes");
+const paymentRoutes = require("./routes/payments.routes");
+
+const adminRoutes = require("./routes/admin.routes");
+const adminReportsRoutes = require("./routes/admin.reports.routes");
+const adminTailoringReportsRoutes =
+  require("./routes/admin.tailoring.reports.routes");
+const adminPayoutRoutes =
+  require("./routes/admin.payouts.routes");
+
+const tailorRoutes = require("./routes/tailor.routes");
+const tailorMeasurementRoutes =
+  require("./routes/tailor.measurements.routes");
+const tailorTailoringRoutes =
+  require("./routes/tailor.tailoring.routes");
+
+const retailerRoutes = require("./routes/retailer.routes");
+const supplierRoutes = require("./routes/supplier.routes");
+
+const customerRoutes = require("./routes/customer.routes");
+const customerTailoringRoutes =
+  require("./routes/customer.tailoring.routes");
+
+const invoiceRoutes = require("./routes/invoice.routes");
+
+/**
+ * ------------------------------------------
+ * ROUTE MOUNTING
+ * ------------------------------------------
+ */
 app.use("/auth", authRoutes);
 app.use("/profile", profileRoutes);
 app.use("/products", productRoutes);
 app.use("/orders", orderRoutes);
 app.use("/delivery", deliveryRoutes);
 
-/* Payments (SAFE WRAPPER) */
-app.use("/payments", (req, res, next) => {
-  if (process.env.PAYMENTS_ENABLED !== "true") {
-    return res.status(503).json({
-      message: "Payments temporarily disabled. Please try again later."
-    });
-  }
-  next();
-}, paymentRoutes);
+/**
+ * Payments (Feature Flag)
+ */
+if (process.env.PAYMENTS_ENABLED === "true") {
+  console.log("💳 Payments ENABLED");
+  app.use("/payments", paymentRoutes);
+} else {
+  console.log("💳 Payments DISABLED");
+}
 
-/* Admin */
+/**
+ * Admin
+ */
 app.use("/admin", adminRoutes);
 app.use("/admin/reports", adminReportsRoutes);
 app.use("/admin/tailoring-reports", adminTailoringReportsRoutes);
 app.use("/admin/payouts", adminPayoutRoutes);
 
-/* Tailor */
+/**
+ * Tailor
+ */
 app.use("/tailor", tailorRoutes);
 app.use("/tailor", tailorMeasurementRoutes);
 app.use("/tailor", tailorTailoringRoutes);
 
-/* Retailer / Supplier */
+/**
+ * Retailer / Supplier
+ */
 app.use("/retailer", retailerRoutes);
 app.use("/supplier", supplierRoutes);
 
-/* Customer */
+/**
+ * Customer
+ */
 app.use("/customer", customerRoutes);
 app.use("/customer", customerTailoringRoutes);
 
-/* Invoice */
+/**
+ * Invoice
+ */
 app.use("/invoices", invoiceRoutes);
 
 /**
- * ==========================================
+ * ------------------------------------------
  * HEALTH CHECK
- * ==========================================
+ * ------------------------------------------
  */
 app.get("/health", (req, res) => {
-  res.status(200).json({
+  res.json({
     status: "OK",
-    paymentsEnabled: process.env.PAYMENTS_ENABLED === "true",
-    uptime: process.uptime()
+    environment: process.env.NODE_ENV || "development",
+    uptime: process.uptime(),
+    paymentsEnabled: process.env.PAYMENTS_ENABLED === "true"
   });
 });
 
 /**
- * ==========================================
- * 404 HANDLER
- * ==========================================
+ * ------------------------------------------
+ * 404
+ * ------------------------------------------
  */
 app.use((req, res) => {
   res.status(404).json({
@@ -187,45 +186,43 @@ app.use((req, res) => {
 });
 
 /**
- * ==========================================
- * GLOBAL ERROR HANDLER
- * ==========================================
+ * ------------------------------------------
+ * ERROR HANDLER
+ * ------------------------------------------
  */
 app.use((err, req, res, next) => {
-  console.error("🔥 UNHANDLED ERROR:", err);
+  console.error("🔥 SERVER ERROR:", err);
   res.status(500).json({
     error: "Internal server error"
   });
 });
 
 /**
- * ==========================================
+ * ------------------------------------------
  * START SERVER
- * ==========================================
+ * ------------------------------------------
  */
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
-  console.log(`✅ Fabric2Fashion API running on port ${PORT}`);
+  console.log(`🚀 Fabric2Fashion API running on port ${PORT}`);
 });
 
 /**
- * ==========================================
+ * ------------------------------------------
  * GRACEFUL SHUTDOWN
- * ==========================================
+ * ------------------------------------------
  */
-process.on("SIGTERM", () => {
-  console.log("🛑 SIGTERM received. Shutting down gracefully...");
+const shutdown = signal => {
+  console.log(`🛑 ${signal} received. Shutting down...`);
   server.close(() => process.exit(0));
-});
+};
 
-process.on("SIGINT", () => {
-  console.log("🛑 SIGINT received. Shutting down gracefully...");
-  server.close(() => process.exit(0));
-});
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
-process.on("unhandledRejection", reason => {
-  console.error("🔥 UNHANDLED PROMISE REJECTION:", reason);
+process.on("unhandledRejection", err => {
+  console.error("🔥 UNHANDLED PROMISE:", err);
 });
 
 process.on("uncaughtException", err => {
