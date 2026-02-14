@@ -5,9 +5,9 @@
  * ==========================================
  * Handles HTTP layer for admin-only actions
  *
- * ❌ No SQL
- * ❌ No DB access
- * ❌ No business rules
+ * ✔ No SQL
+ * ✔ No direct DB access
+ * ✔ Delegates all logic to services
  */
 
 const AdminService = require("../services/admin.service");
@@ -25,10 +25,10 @@ exports.listUsers = async (req, res) => {
 
     const users = await AdminService.getUsersByStatus(status);
 
-    return res.json({ users });
-
-  } catch (error) {
-    return res.status(500).json({
+    res.json({ users });
+  } catch (err) {
+    console.error("ADMIN LIST USERS ERROR:", err);
+    res.status(500).json({
       error: "Failed to fetch users"
     });
   }
@@ -44,14 +44,14 @@ exports.approveUser = async (req, res) => {
   try {
     const user = await AdminService.approveUser(req.params.id);
 
-    return res.json({
+    res.json({
       message: "User approved successfully",
       user
     });
-
-  } catch (error) {
-    return res.status(400).json({
-      error: error.message
+  } catch (err) {
+    console.error("ADMIN APPROVE USER ERROR:", err);
+    res.status(400).json({
+      error: err.message
     });
   }
 };
@@ -66,14 +66,14 @@ exports.blockUser = async (req, res) => {
   try {
     const user = await AdminService.blockUser(req.params.id);
 
-    return res.json({
+    res.json({
       message: "User blocked successfully",
       user
     });
-
-  } catch (error) {
-    return res.status(400).json({
-      error: error.message
+  } catch (err) {
+    console.error("ADMIN BLOCK USER ERROR:", err);
+    res.status(400).json({
+      error: err.message
     });
   }
 };
@@ -82,17 +82,17 @@ exports.blockUser = async (req, res) => {
  * ------------------------------------------
  * ADMIN REPORTS (READ ONLY)
  * GET /admin/reports
- * Filters handled in service
+ * Query filters handled in service
  * ------------------------------------------
  */
 exports.getReports = async (req, res) => {
   try {
     const reports = await AdminService.getReports(req.query);
 
-    return res.json({ reports });
-
-  } catch (error) {
-    return res.status(500).json({
+    res.json({ reports });
+  } catch (err) {
+    console.error("ADMIN REPORT ERROR:", err);
+    res.status(500).json({
       error: "Failed to generate reports"
     });
   }
@@ -127,9 +127,9 @@ exports.exportReports = async (req, res) => {
     });
 
     res.end();
-
-  } catch (error) {
-    return res.status(500).json({
+  } catch (err) {
+    console.error("ADMIN EXPORT ERROR:", err);
+    res.status(500).json({
       error: "Failed to export reports"
     });
   }
@@ -145,10 +145,10 @@ exports.listOrders = async (req, res) => {
   try {
     const orders = await OrderService.getAllOrders();
 
-    return res.json({ orders });
-
-  } catch (error) {
-    return res.status(500).json({
+    res.json({ orders });
+  } catch (err) {
+    console.error("ADMIN LIST ORDERS ERROR:", err);
+    res.status(500).json({
       error: "Failed to fetch orders"
     });
   }
@@ -184,14 +184,14 @@ exports.updateOrderStatus = async (req, res) => {
       status
     );
 
-    return res.json({
+    res.json({
       message: "Order status updated",
       order
     });
-
-  } catch (error) {
-    return res.status(400).json({
-      error: error.message
+  } catch (err) {
+    console.error("ADMIN UPDATE ORDER ERROR:", err);
+    res.status(400).json({
+      error: err.message
     });
   }
 };
